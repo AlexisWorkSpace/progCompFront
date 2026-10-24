@@ -18,7 +18,14 @@ const LANGUAGE_DEFAULTS = {
   c: `#include <stdio.h>\n\nint main() {\n  printf("Hola desde C\\n");\n  return 0;\n}\n`,
   cpp: `#include <iostream>\nusing namespace std;\n\nint main() {\n  cout << "Hola desde C++" << endl;\n  return 0;\n}\n`,
 };
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
+const API_BASE_URL = import.meta.env.VITE_API_URL || (SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/api` : '/api');
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+    ? { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY }
+    : {},
+});
 
 function App() {
   const [language, setLanguage] = useState('python');
@@ -29,6 +36,7 @@ function App() {
   const [ranking, setRanking] = useState([]);
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem('code-runner-token') || '');
+  const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem('code-runner-refresh-token') || '');
   const [authMode, setAuthMode] = useState('login');
   const [authForm, setAuthForm] = useState({ username: '', password: '' });
   const [authError, setAuthError] = useState('');
@@ -48,7 +56,7 @@ function App() {
 
   const loadRanking = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/ranking`);
+      const response = await api.get('/ranking');
       setRanking(response.data.users || []);
     } catch {
       setRanking([]);
@@ -56,7 +64,7 @@ function App() {
   };
 
   useEffect(() => {
-    axios.get(`${API_BASE_URL}/exercises`)
+    api.get('/exercises')
       .then((response) => setExercises(response.data.exercises || []))
       .catch(() => setError('No se pudieron cargar los ejercicios.'));
     loadRanking();
@@ -64,11 +72,26 @@ function App() {
 
   useEffect(() => {
     if (!token) return;
-    axios.get(`${API_BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+    api.get('/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then((response) => setUser(response.data.user))
-      .catch(() => {
+      .catch(async () => {
+        if (refreshToken) {
+          try {
+            const refreshed = await api.post('/auth/refresh', { refreshToken });
+            localStorage.setItem('code-runner-token', refreshed.data.token);
+            localStorage.setItem('code-runner-refresh-token', refreshed.data.refreshToken);
+            setToken(refreshed.data.token);
+            setRefreshToken(refreshed.data.refreshToken);
+            setUser(refreshed.data.user);
+            return;
+          } catch {
+            // Expired or revoked refresh token: sign out locally.
+          }
+        }
         localStorage.removeItem('code-runner-token');
+        localStorage.removeItem('code-runner-refresh-token');
         setToken('');
+        setRefreshToken('');
         setUser(null);
       });
   }, [token]);
@@ -82,11 +105,11 @@ function App() {
     setMetrics(null);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/run`, {
+      const response = await api.post('/run', {
         language,
         code,
         input,
-      }, token ? { headers: { Authorization: `Bearer ${token}` } } : {});
+      }, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
 
       if (response.data.error) {
         setError(response.data.error || 'Error desconocido');
@@ -114,14 +137,19 @@ function App() {
     setAuthError('');
     try {
       const endpoint = authMode === 'register' ? 'register' : 'login';
-      const response = await axios.post(`${API_BASE_URL}/auth/${endpoint}`, authForm);
+      const response = await api.post(`/auth/${endpoint}`, authForm);
+      if (!response.data.token || !response.data.refreshToken || !response.data.user) {
+        throw new Error('Cuenta creada. Inicia sesión para continuar.');
+      }
       localStorage.setItem('code-runner-token', response.data.token);
+      localStorage.setItem('code-runner-refresh-token', response.data.refreshToken);
       setToken(response.data.token);
+      setRefreshToken(response.data.refreshToken);
       setUser(response.data.user);
       setAuthForm({ username: '', password: '' });
       await loadRanking();
     } catch (err) {
-      setAuthError(err.response?.data?.error || 'No se pudo autenticar.');
+      setAuthError(err.response?.data?.error || err.message || 'No se pudo autenticar.');
     } finally {
       setAuthLoading(false);
     }
@@ -129,7 +157,9 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('code-runner-token');
+    localStorage.removeItem('code-runner-refresh-token');
     setToken('');
+    setRefreshToken('');
     setUser(null);
   };
 
@@ -139,13 +169,13 @@ function App() {
     setSubmission(null);
     setError('');
     try {
-      const response = await axios.post(`${API_BASE_URL}/submit`, {
+      const response = await api.post('/submit', {
         exerciseId: selectedExercise.id,
         language,
         code,
       }, { headers: { Authorization: `Bearer ${token}` } });
       setSubmission(response.data);
-      const profile = await axios.get(`${API_BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+      const profile = await api.get('/auth/me', { headers: { Authorization: `Bearer ${token}` } });
       setUser(profile.data.user);
       await loadRanking();
     } catch (err) {
