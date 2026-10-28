@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://TU-REF.supabase.co/functions/v1/api/:path*" },
+    { "source": "/api/:path*", "destination": "https://xuzpqoxfmzlpxssezgsi.supabase.co/functions/v1/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
