@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://progcompback.fly.dev/api/:path*"
+      "destination": "https://progcompback.fly.dev/:path*"
     },
     {
       "source": "/(.*)",
