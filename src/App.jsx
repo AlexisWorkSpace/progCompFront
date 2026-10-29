@@ -64,6 +64,12 @@ function App() {
 
   const code = drafts[draftKey] ?? LANGUAGE_DEFAULTS[language] ?? LANGUAGE_DEFAULTS.python;
   const selectedExercise = exercises.find((exercise) => exercise.id === selectedExerciseId);
+  // El ejercicio T es solo de práctica: no suma puntos ni aparece en el ranking.
+  const isPractice = (exerciseId) => exerciseId === 'T';
+  const rankedExercises = exercises.filter((exercise) => !isPractice(exercise.id));
+  const totalScore = Object.entries(user?.scores || {})
+    .filter(([exerciseId]) => !isPractice(exerciseId))
+    .reduce((sum, [, score]) => sum + score, 0);
 
   const loadRanking = async () => {
     try {
@@ -307,12 +313,12 @@ function App() {
               >
                 {exercises.map((exercise) => (
                   <option key={exercise.id} value={exercise.id}>
-                    {exercise.id} · {exercise.title} · {user?.scores?.[exercise.id] ? `${user.scores[exercise.id]} pts` : '—'}
+                    {exercise.id} · {exercise.title} · {isPractice(exercise.id) ? (user?.scores?.[exercise.id] ? 'práctica ✓' : 'práctica') : user?.scores?.[exercise.id] ? `${user.scores[exercise.id]} pts` : '—'}
                   </option>
                 ))}
               </select>
             </div>
-            {user && <div className="total-score-card"><span>Puntaje total</span><strong>{Object.values(user.scores || {}).reduce((sum, score) => sum + score, 0)} <small>pts</small></strong></div>}
+            {user && <div className="total-score-card"><span>Puntaje total</span><strong>{totalScore} <small>pts</small></strong></div>}
           </aside>
 
           <section className="coding-workspace">
@@ -364,7 +370,8 @@ function App() {
             {submission && submission.exerciseId === selectedExerciseId && <div className={`verdict-card ${submission.verdict === 'AC' ? 'accepted' : 'rejected'}`}>
               <strong>{submission.verdict === 'AC' ? '✓ Aceptado' : submission.verdict === 'TLE' ? '◷ Tiempo excedido' : submission.verdict === 'MLE' ? 'Memoria excedida' : submission.verdict === 'CE/RE' ? 'Error de compilación / ejecución' : '✕ Respuesta incorrecta'}</strong>
               <span>{submission.alreadySolved ? 'Este ejercicio ya estaba resuelto.' : `${submission.passedTests}/${submission.totalTests} casos aprobados${submission.failedTest ? ` · falló el caso ${submission.failedTest}` : ''}`}</span>
-              {submission.verdict === 'AC' && !submission.alreadySolved && <span>+{submission.score} pts{submission.penalty ? ` · penalización de ${submission.penalty} pts` : ''}</span>}
+              {submission.verdict === 'AC' && !submission.alreadySolved && isPractice(submission.exerciseId) && <span>Ejercicio de práctica: no suma puntos.</span>}
+              {submission.verdict === 'AC' && !submission.alreadySolved && !isPractice(submission.exerciseId) && <span>+{submission.score} pts{submission.penalty ? ` · penalización de ${submission.penalty} pts` : ''}</span>}
                         </div>}
             <div className="submit-row">
               <span>El juez ejecuta {selectedExercise?.testCount || 1} {selectedExercise?.testCount === 1 ? 'caso' : 'casos'} de prueba.</span>
@@ -377,8 +384,8 @@ function App() {
       ) : (
         <main className="ranking-page">
           <div className="ranking-heading"><div><span className="eyebrow">TECLA-TON · CLASIFICACIÓN</span><h2>Ranking de competidores</h2><p>Los puntos por problema se suman al total. ¡Sigue resolviendo!</p></div><div className="ranking-trophy">♜</div></div>
-          <div className="ranking-table-wrap"><table className="ranking-table"><thead><tr><th>#</th><th>Equipo</th><th>Participantes</th>{exercises.map((exercise) => <th key={exercise.id}>{exercise.id}</th>)}<th>Total</th></tr></thead>
-            <tbody>{ranking.length ? ranking.map((entry, index) => <tr key={entry.id} className={entry.id === user?.teamId ? 'current-user' : ''}><td className="rank-number">{String(index + 1).padStart(2, '0')}</td><td className="rank-username">{entry.teamName}{entry.id === user?.teamId && <small>TÚ</small>}</td><td className="team-members-cell">{(entry.members || []).join(' + ')}</td>{exercises.map((exercise) => <td key={exercise.id} className={entry.scores[exercise.id] ? 'solved-score' : 'empty-score'}>{entry.scores[exercise.id] ?? '—'}</td>)}<td className="rank-total">{entry.total}<small> pts</small></td></tr>) : <tr><td className="empty-ranking" colSpan={exercises.length + 4}>Aún no hay equipos. ¡Sé el primero en registrarte!</td></tr>}</tbody>
+          <div className="ranking-table-wrap"><table className="ranking-table"><thead><tr><th>#</th><th>Equipo</th><th>Participantes</th>{rankedExercises.map((exercise) => <th key={exercise.id}>{exercise.id}</th>)}<th>Total</th></tr></thead>
+            <tbody>{ranking.length ? ranking.map((entry, index) => <tr key={entry.id} className={entry.id === user?.teamId ? 'current-user' : ''}><td className="rank-number">{String(index + 1).padStart(2, '0')}</td><td className="rank-username">{entry.teamName}{entry.id === user?.teamId && <small>TÚ</small>}</td><td className="team-members-cell">{(entry.members || []).join(' + ')}</td>{rankedExercises.map((exercise) => <td key={exercise.id} className={entry.scores[exercise.id] ? 'solved-score' : 'empty-score'}>{entry.scores[exercise.id] ?? '—'}</td>)}<td className="rank-total">{entry.total}<small> pts</small></td></tr>) : <tr><td className="empty-ranking" colSpan={rankedExercises.length + 4}>Aún no hay equipos. ¡Sé el primero en registrarte!</td></tr>}</tbody>
           </table></div>
           <div className="ranking-note">Cada ejercicio vale 10 puntos. Después de 3 envíos incorrectos, cada nuevo error reduce en 1 punto el premio al resolverlo (hasta un mínimo de 1 punto).</div>
         </main>
