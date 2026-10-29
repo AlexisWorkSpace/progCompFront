@@ -40,7 +40,7 @@ function App() {
   const [authMode, setAuthMode] = useState('register');
   const [authForm, setAuthForm] = useState({
     username: '', password: '', fullName: '', career: '', teamMode: 'pair',
-    teamName: '', teammateName: '', inviteCode: '',
+    teamName: '', teammateName: '',
   });
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
@@ -203,7 +203,7 @@ function App() {
       setToken(response.data.token);
       setRefreshToken(response.data.refreshToken);
       setUser(response.data.user);
-      setAuthForm({ username: '', password: '', fullName: '', career: '', teamMode: 'pair', teamName: '', teammateName: '', inviteCode: '' });
+      setAuthForm({ username: '', password: '', fullName: '', career: '', teamMode: 'pair', teamName: '', teammateName: '' });
       await loadRanking();
     } catch (err) {
       setAuthError(err.response?.data?.error || err.message || 'No se pudo autenticar.');
@@ -331,7 +331,7 @@ function App() {
             </> : <div className="loading-card">Cargando ejercicios…</div>}
 
             {!user && <form className="auth-card registration-card" onSubmit={handleAuth}>
-              <div className="auth-copy"><span className="eyebrow">COMPETENCIA · 80 PARTICIPANTES</span><h3>{authMode === 'register' ? 'Registra tu equipo' : 'Inicia sesión'}</h3><p>{authMode === 'register' ? 'Hasta 40 equipos de una o dos personas. Ambos integrantes comparten puntaje e intentos.' : 'Accede a la cuenta del participante.'}</p></div>
+              <div className="auth-copy"><span className="eyebrow">COMPETENCIA · 80 PARTICIPANTES</span><h3>{authMode === 'register' ? 'Registra tu equipo' : 'Inicia sesión'}</h3><p>{authMode === 'register' ? 'Hasta 40 equipos de una o dos personas. Cada equipo usa una sola cuenta.' : 'Accede a la cuenta del participante.'}</p></div>
               {authMode === 'register' && <>
                 <label>Nombre completo<input autoComplete="name" value={authForm.fullName} onChange={(event) => setAuthForm({ ...authForm, fullName: event.target.value })} required minLength={2} maxLength={100} /></label>
                 <label>Carrera<input value={authForm.career} onChange={(event) => setAuthForm({ ...authForm, career: event.target.value })} required minLength={2} maxLength={100} placeholder="Ej. Ingeniería en Sistemas" /></label>
@@ -342,18 +342,15 @@ function App() {
                 <fieldset className="team-mode-fieldset"><legend>¿Cómo participas?</legend>
                   <label className="radio-option"><input type="radio" name="team-mode" checked={authForm.teamMode === 'pair'} onChange={() => setAuthForm({ ...authForm, teamMode: 'pair' })} /> Crear equipo de dos</label>
                   <label className="radio-option"><input type="radio" name="team-mode" checked={authForm.teamMode === 'solo'} onChange={() => setAuthForm({ ...authForm, teamMode: 'solo' })} /> Participar solo</label>
-                  <label className="radio-option"><input type="radio" name="team-mode" checked={authForm.teamMode === 'join'} onChange={() => setAuthForm({ ...authForm, teamMode: 'join' })} /> Ya tengo invitación</label>
                 </fieldset>
-                {authForm.teamMode !== 'join' && <label>Nombre del equipo<input value={authForm.teamName} onChange={(event) => setAuthForm({ ...authForm, teamName: event.target.value })} required minLength={2} maxLength={60} /></label>}
+                <label>Nombre del equipo<input value={authForm.teamName} onChange={(event) => setAuthForm({ ...authForm, teamName: event.target.value })} required minLength={2} maxLength={60} /></label>
                 {authForm.teamMode === 'pair' && <label>Nombre completo de tu compañero/a<input value={authForm.teammateName} onChange={(event) => setAuthForm({ ...authForm, teammateName: event.target.value })} required minLength={2} maxLength={100} /></label>}
-                {authForm.teamMode === 'join' && <label>Código de invitación del equipo<input autoCapitalize="characters" value={authForm.inviteCode} onChange={(event) => setAuthForm({ ...authForm, inviteCode: event.target.value.toUpperCase() })} required minLength={10} maxLength={10} /></label>}
               </>}
               <button className="auth-submit" disabled={authLoading}>{authLoading ? 'Procesando…' : authMode === 'register' ? 'Crear cuenta y equipo' : 'Entrar'}</button>
               <button className="auth-switch" type="button" onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }}>{authMode === 'login' ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}</button>
               {authError && <p className="form-error">{authError}</p>}
             </form>}
 
-            {user?.team?.inviteCode && <div className="team-invite"><div><span className="eyebrow">COMPARTE CON TU COMPAÑERO/A</span><strong>El segundo integrante debe registrarse con este código</strong></div><code>{user.team.inviteCode}</code></div>}
 
             <div className="editor-toolbar">
               <div><span className="editor-label">TU SOLUCIÓN</span>{user && <span className="attempt-count">Intentos incorrectos: {user.wrongAttempts?.[selectedExerciseId] || 0}</span>}</div>
